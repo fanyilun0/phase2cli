@@ -16,18 +16,45 @@ function check_and_install_nvm() {
     if ! command -v nvm &> /dev/null; then
         echo "正在安装nvm..."
         curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+        
+        # 重新加载nvm环境
         export NVM_DIR="$HOME/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
         [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-        source ~/.bashrc
+        
+        # 重新加载shell配置
+        if [ -f ~/.bashrc ]; then
+            source ~/.bashrc
+        elif [ -f ~/.zshrc ]; then
+            source ~/.zshrc
+        fi
+        
+        # 验证nvm安装
+        if ! command -v nvm &> /dev/null; then
+            echo "nvm安装失败,请手动安装"
+            exit 1
+        fi
     fi
+    
+    echo "nvm已安装,版本: $(nvm --version)"
+    
+    # 安装并使用Node.js 16.20
+    echo "正在安装Node.js 16.20..."
+    if ! nvm install 16.20; then
+        echo "Node.js 16.20安装失败"
+        exit 1
+    fi
+    
+    if ! nvm use 16.20; then
+        echo "切换到Node.js 16.20失败"
+        exit 1
+    fi
+    
+    echo "Node.js版本: $(node --version)"
 }
 
 # 初始化安装
 function init_environment() {
-    # 检查并安装screen
-    check_and_install_screen
-    
     # 检查并安装nvm
     check_and_install_nvm
     
@@ -36,10 +63,6 @@ function init_environment() {
     mkdir -p p0tion-tmp
     cd p0tion-tmp
 
-    # 使用Node.js 16.20
-    echo "切换到Node.js 16.20..."
-    nvm use 16.20 || nvm install 16.20
-    
     # 安装phase2cli
     echo "安装 @p0tion/phase2cli..."
     npm install @p0tion/phase2cli
@@ -50,7 +73,7 @@ function init_environment() {
 
 # 执行认证
 function auth_node() {
-    cd p0tion-tmp 2>/dev/null || {
+    cd $HOME/p0tion-tmp 2>/dev/null || {
         echo "错误: 未找到p0tion-tmp目录，请先执行初始化"
         read -n 1 -s -r -p "按任意键返回主菜单..."
         return
@@ -88,30 +111,14 @@ function auth_node() {
 
 # 启动contribute
 function start_contribute() {
-    cd p0tion-tmp 2>/dev/null || {
+    cd $HOME/p0tion-tmp 2>/dev/null || {
         echo "错误: 未找到p0tion-tmp目录，请先执行初始化"
         read -n 1 -s -r -p "按任意键返回主菜单..."
         return
     }
     
-    # 提示输入屏幕名称
-    read -p "请输入屏幕名称 (默认值: hyperspace): " screen_name
-    screen_name=${screen_name:-hyperspace}
-    
-    # 检查并清理已存在的screen会话
-    screen -ls | grep "$screen_name" &>/dev/null
-    if [ $? -eq 0 ]; then
-        echo "找到现有的 '$screen_name' 屏幕会话，正在停止并删除..."
-        screen -S "$screen_name" -X quit
-        sleep 2
-    fi
-    
-    # 创建新的screen会话并执行contribute命令
-    echo "在screen中执行contribute命令..."
-    screen -dmS "$screen_name" bash -c "cd $(pwd) && npx phase2cli contribute"
-    
-    echo "contribute命令正在screen会话 '$screen_name' 中运行"
-    echo "使用 'screen -r $screen_name' 可以查看运行状态"
+    echo "启动contribute..."
+    npx phase2cli contribute
     
     cd ..
     read -n 1 -s -r -p "按任意键返回主菜单..."
@@ -133,13 +140,11 @@ function install_pse() {
 function main_menu() {
     while true; do
         clear
-        echo "脚本由大赌社区哈哈哈哈编写，推特 @ferdie_jhovie，免费开源，请勿相信收费"
-        echo "如有问题，可联系推特，仅此只有一个号"
+        echo "脚本由大赌社区fanyilun0编写，推特 @fanyilun0，免费开源，请勿相信收费"
         echo "================================================================"
         echo "退出脚本，请按键盘 ctrl + C 退出即可"
         echo "请选择要执行的操作:"
         echo "1. 完整部署phase2节点"
-        echo "2. 仅执行初始化安装"
         echo "3. 仅执行认证"
         echo "4. 仅启动contribute"
         echo "5. 清理节点"
@@ -150,12 +155,11 @@ function main_menu() {
 
         case $choice in
             1)  install_pse ;;
-            2)  init_environment ;;
-            3)  auth_node ;;
-            4)  start_contribute ;;
-            5)  clean_node ;;
-            6)  logout_node ;;
-            7)  exit_script ;;
+            2)  auth_node ;;
+            3)  start_contribute ;;
+            4)  clean_node ;;
+            5)  logout_node ;;
+            6)  exit_script ;;
             *)  echo "无效选择，请重新输入！"; sleep 2 ;;
         esac
     done
